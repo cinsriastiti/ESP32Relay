@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>Relay 1 Controller</title>
+  <title>Relay 1 Control + Logging</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <style>
     body {
@@ -22,7 +22,7 @@
       padding: 30px 25px;
       border-radius: 15px;
       box-shadow: 0 6px 20px rgba(0, 0, 0, 0.1);
-      max-width: 400px;
+      max-width: 450px;
       width: 90%;
       text-align: center;
     }
@@ -90,6 +90,24 @@
       background-color: #0d47a1;
     }
 
+    #logPanel {
+      margin-top: 30px;
+      text-align: left;
+      font-size: 0.95rem;
+    }
+
+    #logPanel ul {
+      padding: 0;
+      list-style: none;
+      max-height: 200px;
+      overflow-y: auto;
+    }
+
+    #logPanel li {
+      padding: 5px 0;
+      border-bottom: 1px solid #ddd;
+    }
+
     footer {
       font-size: 0.8rem;
       color: #666;
@@ -114,7 +132,13 @@
     <h1>Relay 1 Control</h1>
     <div class="relay-status" id="status1">Relay 1: Loading...</div>
     <button id="toggleBtn">Toggle Relay 1</button>
-    <footer>Created by PLN</footer>
+
+    <div id="logPanel">
+      <h3>Activity Log</h3>
+      <ul id="logList"></ul>
+    </div>
+
+    <footer>Created by Cyn n Eka</footer>
   </div>
 
   <!-- Firebase SDK -->
@@ -165,6 +189,15 @@
       const relayRef = db.ref("/relay1");
       const statusEl = document.getElementById("status1");
       const toggleBtn = document.getElementById("toggleBtn");
+      const logsRef = db.ref("/logs");
+      const logList = document.getElementById("logList");
+      let userEmail = "";
+
+      firebase.auth().onAuthStateChanged(user => {
+        if (user) {
+          userEmail = user.email;
+        }
+      });
 
       relayRef.on("value", snapshot => {
         const val = snapshot.val();
@@ -176,8 +209,29 @@
         relayRef.get().then(snapshot => {
           const current = snapshot.val();
           relayRef.set(!current);
+
+          // Fetch IP Address
+          fetch('https://api.ipify.org?format=json')
+            .then(res => res.json())
+            .then(ipData => {
+              const logEntry = {
+                user: userEmail || "Unknown",
+                action: `Toggled Relay 1 to ${!current ? "ON" : "OFF"}`,
+                ip: ipData.ip,
+                timestamp: new Date().toISOString()
+              };
+              logsRef.push(logEntry);
+            });
         });
       };
+
+      // Show logs in UI
+      logsRef.limitToLast(20).on("child_added", snapshot => {
+        const log = snapshot.val();
+        const li = document.createElement("li");
+        li.textContent = `[${log.timestamp}] ${log.user} - ${log.action} (IP: ${log.ip})`;
+        logList.prepend(li);
+      });
     }
   </script>
 </body>
