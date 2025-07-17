@@ -1,238 +1,172 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
   <meta charset="UTF-8" />
-  <title>Relay 1 Control + Logging</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Relay Control</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
   <style>
     body {
-      margin: 0;
-      font-family: "Segoe UI", sans-serif;
-      background: linear-gradient(to bottom right, #f2f6fc, #e0eafc);
-      color: #333;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      min-height: 100vh;
-    }
-
-    .container {
-      background: white;
-      padding: 30px 25px;
-      border-radius: 15px;
-      box-shadow: 0 6px 20px rgba(0, 0, 0, 0.1);
-      max-width: 450px;
-      width: 90%;
+      font-family: Arial, sans-serif;
       text-align: center;
-    }
-
-    h1 {
-      font-size: 1.6rem;
-      margin-bottom: 20px;
-    }
-
-    .relay-status {
-      padding: 12px 0;
-      margin-bottom: 25px;
-      border-radius: 10px;
-      background-color: #f1f1f1;
-      font-size: 1rem;
-      transition: background-color 0.3s ease;
-    }
-
-    .relay-status.on {
-      background-color: #c8e6c9;
-      color: #2e7d32;
-    }
-
-    .relay-status.off {
-      background-color: #ffcdd2;
-      color: #c62828;
-    }
-
-    #toggleBtn {
-      padding: 14px;
-      width: 100%;
-      font-size: 16px;
-      border: none;
-      border-radius: 10px;
-      color: white;
-      background-color: #1976d2;
-      cursor: pointer;
-      transition: background-color 0.3s ease;
-    }
-
-    #toggleBtn:hover {
-      background-color: #0d47a1;
-    }
-
-    #loginForm input {
-      width: 100%;
-      padding: 12px;
-      margin: 10px 0;
-      border: 1.5px solid #ccc;
-      border-radius: 10px;
-    }
-
-    #loginForm button {
-      background-color: #1976d2;
-      color: white;
-      padding: 12px;
-      border: none;
-      border-radius: 10px;
-      width: 100%;
-      font-size: 16px;
-      cursor: pointer;
-    }
-
-    #loginForm button:hover {
-      background-color: #0d47a1;
-    }
-
-    #logPanel {
-      margin-top: 30px;
-      text-align: left;
-      font-size: 0.95rem;
-    }
-
-    #logPanel ul {
+      background-color: #f0f2f5;
+      margin: 0;
       padding: 0;
-      list-style: none;
+    }
+    #loginForm, #dashboard {
+      max-width: 400px;
+      margin: 60px auto;
+      background: white;
+      padding: 30px 20px;
+      border-radius: 15px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    }
+    input, button {
+      width: 100%;
+      padding: 12px;
+      font-size: 16px;
+      margin-top: 15px;
+      border-radius: 8px;
+    }
+    button {
+      background: #1e88e5;
+      color: white;
+      border: none;
+      cursor: pointer;
+    }
+    button:hover {
+      background: #1565c0;
+    }
+    #relayStatus {
+      margin: 20px 0;
+      font-size: 1.2rem;
+    }
+    #logList {
+      text-align: left;
       max-height: 200px;
       overflow-y: auto;
-    }
-
-    #logPanel li {
-      padding: 5px 0;
-      border-bottom: 1px solid #ddd;
-    }
-
-    footer {
-      font-size: 0.8rem;
-      color: #666;
+      font-size: 0.9rem;
       margin-top: 20px;
-    }
-
-    #dashboard, #loginForm {
-      display: none;
     }
   </style>
 </head>
 <body>
 
-  <div class="container" id="loginForm">
-    <h1>Login</h1>
-    <input type="email" id="email" placeholder="Enter Email" required />
-    <input type="password" id="password" placeholder="Enter Password" required />
-    <button id="loginBtn">Login</button>
-  </div>
+<h2>ESP32 Relay Control</h2>
 
-  <div class="container" id="dashboard">
-    <h1>Relay 1 Control</h1>
-    <div class="relay-status" id="status1">Relay 1: Loading...</div>
-    <button id="toggleBtn">Toggle Relay 1</button>
+<!-- Login Form -->
+<div id="loginForm">
+  <input type="email" id="email" placeholder="Email" required />
+  <input type="password" id="password" placeholder="Password" required />
+  <button id="loginBtn">Login</button>
+</div>
 
-    <div id="logPanel">
-      <h3>Activity Log</h3>
-      <ul id="logList"></ul>
-    </div>
+<!-- Dashboard -->
+<div id="dashboard" style="display: none;">
+  <div id="relayStatus">Status: <span id="status">Loading...</span></div>
+  <button id="toggleBtn">Toggle Relay</button>
+  <button id="logoutBtn" style="background:#555;margin-top:10px;">Logout</button>
 
-    <footer>Created by Cyn n Eka</footer>
-  </div>
+  <div id="logList"></div>
+</div>
 
-  <!-- Firebase SDK -->
-  <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-app-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-database-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-auth-compat.js"></script>
+<!-- Firebase SDKs -->
+<script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-database-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-auth-compat.js"></script>
 
-  <script>
-    const firebaseConfig = {
-	  apiKey: "AIzaSyAvZymUw21FYbzdFIXeZBnGNJPfDS2v0ZQ",
-	  authDomain: "kproject-f2ac4.firebaseapp.com",
-	  databaseURL: "https://kproject-f2ac4-default-rtdb.asia-southeast1.firebasedatabase.app",
-	  projectId: "kproject-f2ac4",
-	  storageBucket: "kproject-f2ac4.firebasestorage.app",
-	  messagingSenderId: "53856056507",
-	  appId: "1:53856056507:web:e6c4c7ed99c2265528e59e",
-	  measurementId: "G-2Y82EJ5PDV"
-	};
+<script>
+  const firebaseConfig = {
+     apiKey: "AIzaSyAvZymUw21FYbzdFIXeZBnGNJPfDS2v0ZQ",
+     authDomain: "kproject-f2ac4.firebaseapp.com",
+     databaseURL: "https://kproject-f2ac4-default-rtdb.asia-southeast1.firebasedatabase.app",
+     projectId: "kproject-f2ac4",
+     storageBucket: "kproject-f2ac4.firebasestorage.app",
+     messagingSenderId: "53856056507",
+     appId: "1:53856056507:web:e6c4c7ed99c2265528e59e",
+     measurementId: "G-2Y82EJ5PDV"
+   };
+  firebase.initializeApp(firebaseConfig);
 
-    firebase.initializeApp(firebaseConfig);
+  // Credentials
+  const allowedEmail = "PLN123@gmail.com";
+  const allowedPassword = "Up2DB@li";
 
-    const allowedEmail = "PLN123@gmail.com";
-    const allowedPassword = "Up2DB@li";
+  const loginBtn = document.getElementById("loginBtn");
+  const loginForm = document.getElementById("loginForm");
+  const dashboard = document.getElementById("dashboard");
+  const statusText = document.getElementById("status");
+  const toggleBtn = document.getElementById("toggleBtn");
+  const logList = document.getElementById("logList");
 
-    const loginForm = document.getElementById("loginForm");
-    const dashboard = document.getElementById("dashboard");
-    const loginBtn = document.getElementById("loginBtn");
+  loginBtn.onclick = () => {
+    const email = document.getElementById("email").value.trim();
+    const password = document.getElementById("password").value;
 
-    loginBtn.addEventListener("click", () => {
-      const email = document.getElementById("email").value.trim();
-      const password = document.getElementById("password").value;
+    if (email === allowedEmail && password === allowedPassword) {
+      firebase.auth().signInWithEmailAndPassword(email, password)
+        .then(() => {
+          loginForm.style.display = "none";
+          dashboard.style.display = "block";
+          startRelayControl();
+        })
+        .catch(err => alert("Login error: " + err.message));
+    } else {
+      alert("Invalid credentials.");
+    }
+  };
 
-      if (email === allowedEmail && password === allowedPassword) {
-        firebase.auth().signInWithEmailAndPassword(email, password)
-          .then(() => {
-            loginForm.style.display = "none";
-            dashboard.style.display = "block";
-            startRelay1Control();
-          })
-          .catch(error => alert("Login failed: " + error.message));
-      } else {
-        alert("Invalid email or password.");
-      }
+  function startRelayControl() {
+    const db = firebase.database();
+    const relayRef = db.ref("/relay1");
+
+    // Status update
+    relayRef.on("value", snap => {
+      const state = snap.val();
+      statusText.innerText = state ? "ON" : "OFF";
+      toggleBtn.style.backgroundColor = state ? "green" : "#1e88e5";
     });
 
-    function startRelay1Control() {
-      const db = firebase.database();
-      const relayRef = db.ref("/relay1");
-      const statusEl = document.getElementById("status1");
-      const toggleBtn = document.getElementById("toggleBtn");
-      const logsRef = db.ref("/logs");
-      const logList = document.getElementById("logList");
-      let userEmail = "";
+    // Toggle
+    toggleBtn.onclick = () => {
+      relayRef.get().then(snap => {
+        const current = snap.val();
+        relayRef.set(!current);
 
-      firebase.auth().onAuthStateChanged(user => {
-        if (user) {
-          userEmail = user.email;
-        }
-      });
+        // Log ke /logs
+        const logRef = db.ref("/logs");
+        const user = firebase.auth().currentUser;
+        const time = new Date().toLocaleString();
 
-      relayRef.on("value", snapshot => {
-        const val = snapshot.val();
-        statusEl.textContent = `Relay 1: ${val ? "ON" : "OFF"}`;
-        statusEl.className = `relay-status ${val ? "on" : "off"}`;
-      });
-
-      toggleBtn.onclick = () => {
-        relayRef.get().then(snapshot => {
-          const current = snapshot.val();
-          relayRef.set(!current);
-
-          // Fetch IP Address
-          fetch('https://api.ipify.org?format=json')
-            .then(res => res.json())
-            .then(ipData => {
-              const logEntry = {
-                user: userEmail || "Unknown",
-                action: `Toggled Relay 1 to ${!current ? "ON" : "OFF"}`,
-                ip: ipData.ip,
-                timestamp: new Date().toISOString()
-              };
-              logsRef.push(logEntry);
-            });
+        logRef.push({
+          user: user.email,
+          action: `Toggled relay to ${!current ? "ON" : "OFF"}`,
+          time: time
         });
-      };
-
-      // Show logs in UI
-      logsRef.limitToLast(20).on("child_added", snapshot => {
-        const log = snapshot.val();
-        const li = document.createElement("li");
-        li.textContent = `[${log.timestamp}] ${log.user} - ${log.action} (IP: ${log.ip})`;
-        logList.prepend(li);
       });
-    }
-  </script>
+    };
+
+    // Load log
+    const logRef = db.ref("/logs");
+    logRef.limitToLast(20).on("value", snap => {
+      const logs = snap.val();
+      logList.innerHTML = "<h4>Recent Logs:</h4>";
+      for (let key in logs) {
+        const log = logs[key];
+        logList.innerHTML += `<p>🔹 ${log.time} — ${log.user} — ${log.action}</p>`;
+      }
+    });
+  }
+
+  // Logout
+  document.getElementById("logoutBtn").onclick = () => {
+    firebase.auth().signOut().then(() => {
+      dashboard.style.display = "none";
+      loginForm.style.display = "block";
+      document.getElementById("email").value = "";
+      document.getElementById("password").value = "";
+    });
+  };
+</script>
+
 </body>
 </html>
