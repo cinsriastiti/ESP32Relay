@@ -7,190 +7,198 @@
   <style>
     body {
       font-family: Arial, sans-serif;
-      text-align: center;
-      background-color: #f4f4f4;
+      background: #f0f0f5;
       margin: 0;
-      padding: 0 10px 40px;
-    }
-
-    h1 {
-      margin-top: 30px;
-      font-size: 2rem;
+      padding: 20px;
+      text-align: center;
     }
 
     #loginForm, #dashboard {
       max-width: 400px;
-      margin: 40px auto;
+      margin: 0 auto;
       background: white;
       padding: 30px 20px;
       border-radius: 15px;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
     }
 
-    input {
+    h1 {
+      margin-bottom: 20px;
+    }
+
+    input, button {
       width: 100%;
       padding: 12px;
-      margin: 10px 0;
-      font-size: 1rem;
-      border-radius: 10px;
-      border: 1.5px solid #ccc;
+      margin-bottom: 15px;
+      font-size: 16px;
+      border-radius: 8px;
+      border: 1px solid #ccc;
       box-sizing: border-box;
     }
 
     button {
-      width: 100%;
-      background-color: #1976d2;
+      background-color: #007bff;
       color: white;
-      padding: 12px;
-      font-size: 1rem;
       border: none;
-      border-radius: 10px;
-      cursor: pointer;
-      margin-top: 10px;
     }
 
     button:hover {
-      background-color: #0d47a1;
+      background-color: #0056b3;
     }
 
-    .relay-card {
-      background: #fff;
-      padding: 20px;
-      border-radius: 12px;
-      box-shadow: 0 4px 10px rgba(0,0,0,0.1);
-      margin-top: 20px;
+    #status {
+      font-size: 1.1rem;
+      margin: 10px 0;
     }
 
-    .relay-card p {
-      font-size: 1.2rem;
-      margin-bottom: 10px;
-    }
-
-    footer {
+    #logContainer {
+      margin-top: 25px;
+      text-align: left;
       font-size: 0.9rem;
-      color: #666;
-      margin-top: 40px;
+      background: #fefefe;
+      padding: 15px;
+      border-radius: 10px;
+      max-height: 300px;
+      overflow-y: auto;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+    }
+
+    .log-entry {
+      margin-bottom: 10px;
+      border-bottom: 1px solid #eee;
+      padding-bottom: 6px;
     }
   </style>
 </head>
 <body>
 
-  <h1>ESP32 Relay Dashboard</h1>
-
-  <!-- Login Form -->
   <div id="loginForm">
-    <input type="email" id="email" placeholder="Enter Email" />
-    <input type="password" id="password" placeholder="Enter Password" />
+    <h1>Login</h1>
+    <input type="email" id="email" placeholder="Enter Email" required />
+    <input type="password" id="password" placeholder="Enter Password" required />
     <button id="loginBtn">Login</button>
   </div>
 
-  <!-- Dashboard -->
   <div id="dashboard" style="display: none;">
-    <div class="relay-card">
-      <h2>Relay 1</h2>
-      <p>Status: <span id="status1">Loading...</span></p>
-      <button id="btn1">Toggle</button>
-    </div>
-    <button id="logoutBtn">Logout</button>
-  </div>
+    <h1>Relay 1 Control</h1>
+    <p>Status: <span id="status">Loading...</span></p>
+    <button id="btnRelay">Toggle Relay</button>
+    <button id="logoutBtn" style="background-color: #555;">Logout</button>
 
-  <footer>
-    Created by Cyn n Eka
-  </footer>
+    <div id="logContainer">
+      <h3>Recent Logs</h3>
+      <div id="logs"></div>
+    </div>
+  </div>
 
   <!-- Firebase SDK -->
   <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-app-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-database-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-auth-compat.js"></script>
 
   <script>
+    // === Firebase Configuration ===
     const firebaseConfig = {
-     apiKey: "AIzaSyAvZymUw21FYbzdFIXeZBnGNJPfDS2v0ZQ",
-     authDomain: "kproject-f2ac4.firebaseapp.com",
-     databaseURL: "https://kproject-f2ac4-default-rtdb.asia-southeast1.firebasedatabase.app",
-     projectId: "kproject-f2ac4",
-     storageBucket: "kproject-f2ac4.firebasestorage.app",
-     messagingSenderId: "53856056507",
-     appId: "1:53856056507:web:e6c4c7ed99c2265528e59e",
-     measurementId: "G-2Y82EJ5PDV"
-   };
+       apiKey: "AIzaSyAvZymUw21FYbzdFIXeZBnGNJPfDS2v0ZQ",
+       authDomain: "kproject-f2ac4.firebaseapp.com",
+       databaseURL: "https://kproject-f2ac4-default-rtdb.asia-southeast1.firebasedatabase.app",
+       projectId: "kproject-f2ac4",
+       storageBucket: "kproject-f2ac4.firebasestorage.app",
+       messagingSenderId: "53856056507",
+       appId: "1:53856056507:web:e6c4c7ed99c2265528e59e",
+       measurementId: "G-2Y82EJ5PDV"
+     };
 
     firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();
 
-    // Allowed users
-    const allowedUsers = {
-      "PLN123@gmail.com": "Up2DB@li",
-      "cindy@gmail.com": "passCindy123",
-      "eka@gmail.com": "ekaSecurePass"
-    };
-
-    const loginBtn = document.getElementById("loginBtn");
-    const logoutBtn = document.getElementById("logoutBtn");
+    // === DOM Elements ===
     const loginForm = document.getElementById("loginForm");
     const dashboard = document.getElementById("dashboard");
+    const loginBtn = document.getElementById("loginBtn");
+    const logoutBtn = document.getElementById("logoutBtn");
+    const statusText = document.getElementById("status");
+    const btnRelay = document.getElementById("btnRelay");
+    const logsDiv = document.getElementById("logs");
 
+    // === Login Handler ===
     loginBtn.onclick = () => {
       const email = document.getElementById("email").value.trim();
       const password = document.getElementById("password").value;
 
       if (!email || !password) {
-        alert("Masukkan email dan password.");
+        alert("Isi email dan password.");
         return;
       }
 
-      if (allowedUsers[email] && allowedUsers[email] === password) {
-        firebase.auth().signInWithEmailAndPassword(email, password)
-          .then(() => {
-            loginForm.style.display = "none";
-            dashboard.style.display = "block";
-            startRelay1Control();
-          })
-          .catch(err => alert("Firebase login gagal: " + err.message));
-      } else {
-        alert("Email atau password salah.");
-      }
+      firebase.auth().signInWithEmailAndPassword(email, password)
+        .then(() => {
+          loginForm.style.display = "none";
+          dashboard.style.display = "block";
+          startDashboard();
+        })
+        .catch(err => alert("Login gagal: " + err.message));
     };
 
+    // === Logout Handler ===
     logoutBtn.onclick = () => {
       firebase.auth().signOut().then(() => {
         dashboard.style.display = "none";
         loginForm.style.display = "block";
+        logsDiv.innerHTML = "";
         document.getElementById("email").value = "";
         document.getElementById("password").value = "";
       });
     };
 
-    function startRelay1Control() {
-      const db = firebase.database();
+    // === Start Dashboard ===
+    function startDashboard() {
       const relayRef = db.ref("/relay1");
-      const statusText = document.getElementById("status1");
-      const toggleBtn = document.getElementById("btn1");
 
-      relayRef.on("value", (snapshot) => {
-        const state = snapshot.val();
+      // Realtime relay status
+      relayRef.on("value", snap => {
+        const state = snap.val();
         statusText.innerText = state ? "ON" : "OFF";
-        toggleBtn.style.backgroundColor = state ? "green" : "#1976d2";
+        btnRelay.style.backgroundColor = state ? "green" : "#007bff";
       });
 
-      toggleBtn.onclick = () => {
+      // Toggle relay & log
+      btnRelay.onclick = () => {
         relayRef.get().then(snap => {
-          const current = snap.val();
-          const newState = !current;
+          const newState = !snap.val();
           relayRef.set(newState);
 
           const user = firebase.auth().currentUser;
           const logRef = db.ref("/logs");
-          const timestamp = new Date().toISOString();
 
           logRef.push({
             user: user ? user.email : "Unknown",
             action: `Toggled Relay 1 to ${newState ? "ON" : "OFF"}`,
-            timestamp: timestamp
+            timestamp: new Date().toISOString()
           });
         });
       };
+
+      // Load latest logs
+      const logRef = db.ref("/logs").limitToLast(20);
+      logRef.on("value", snap => {
+        logsDiv.innerHTML = "";
+        const logs = snap.val();
+        if (logs) {
+          Object.values(logs).reverse().forEach(log => {
+            logsDiv.innerHTML += `
+              <div class="log-entry">
+                <strong>${log.user}</strong><br/>
+                ${log.action}<br/>
+                <small>${new Date(log.timestamp).toLocaleString()}</small>
+              </div>
+            `;
+          });
+        } else {
+          logsDiv.innerHTML = "<p>Belum ada log.</p>";
+        }
+      });
     }
   </script>
-
 </body>
 </html>
